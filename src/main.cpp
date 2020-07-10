@@ -136,10 +136,17 @@ int main() {
           if (too_close)
           {
             int distant_cars_left = 0;
-            bool right_safe;
+            int distant_cars_right = 0;
+            bool feasible_left = false;
+            bool feasible_right = false;
+            double left_speed = 100;
+            double right_speed = 100;
+            double left_distance = 1000;
+            double right_distance = 1000;
             // if we're in the middle lane
             if (lane == 1)
             {
+              // check left lane
               for (auto car_info : lane_to_the_left_vehicles)
               {
                 double vx = car_info[3];
@@ -147,11 +154,49 @@ int main() {
                 double check_speed = sqrt(vx * vx + vy * vy);
                 double check_car_s = car_info[5];
                 check_car_s += (double)prev_size * 0.02 * check_speed;
+                // find the slowest car in the lane in front of us
+                if (check_car_s > car_s) {
+                  if (check_speed < left_speed)
+                    left_speed = check_speed;
+                  if (check_car_s < left_distance)
+                    left_distance = check_car_s;
+                }
                 if ((check_car_s - car_s) >= 20 || (check_car_s - car_s) <= -6)
                   distant_cars_left++;
               }
               if (distant_cars_left == lane_to_the_left_vehicles.size())
-                lane = 0;
+                feasible_left = true;
+              
+              // check right lane
+              for (auto car_info : lane_to_the_right_vehicles)
+              {
+                double vx = car_info[3];
+                double vy = car_info[4];
+                double check_speed = sqrt(vx * vx + vy * vy);
+                double check_car_s = car_info[5];
+                check_car_s += (double)prev_size * 0.02 * check_speed;
+                // find the slowest car in the lane in front of us
+                if (check_car_s > car_s) {
+                  if (check_speed < right_speed)
+                    right_speed = check_speed;
+                  if (check_car_s < right_distance)
+                    right_distance = check_car_s;
+                }
+                if ((check_car_s - car_s) >= 20 || (check_car_s - car_s) <= -6)
+                  distant_cars_right++;
+              }
+              if (distant_cars_right == lane_to_the_right_vehicles.size())
+                feasible_right = true;
+              
+              if (feasible_left && feasible_right)
+              {
+                double left_score = left_speed + left_distance;
+                double right_score = right_speed + right_distance;
+                if (left_score > right_score)
+                  lane = 0;
+                else
+                  lane = 2;
+              }
             }
           }
           
