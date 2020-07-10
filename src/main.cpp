@@ -135,16 +135,23 @@ int main() {
           // consider lane change
           if (too_close)
           {
-            bool left_safe = false;
+            int distant_cars_left = 0;
             bool right_safe;
             // if we're in the middle lane
             if (lane == 1)
             {
               for (auto car_info : lane_to_the_left_vehicles)
               {
-                if (abs(car_info[5] - car_s) >= 20)
-                  lane = 0;
+                double vx = car_info[3];
+                double vy = car_info[4];
+                double check_speed = sqrt(vx * vx + vy * vy);
+                double check_car_s = car_info[5];
+                check_car_s += (double)prev_size * 0.02 * check_speed;
+                if ((check_car_s - car_s) >= 20 || (check_car_s - car_s) <= -6)
+                  distant_cars_left++;
               }
+              if (distant_cars_left == lane_to_the_left_vehicles.size())
+                lane = 0;
             }
           }
           
