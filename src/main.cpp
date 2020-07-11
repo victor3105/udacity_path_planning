@@ -289,7 +289,7 @@ int main() {
           // fill up the rest of trajectory points
           for (int i = 1; i <= 50 - prev_size; i++)
           {
-            	if (too_close)
+            if (too_close)
           	{
             	ref_vel -= 0.3;
           	}

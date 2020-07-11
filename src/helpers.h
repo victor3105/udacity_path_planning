@@ -168,8 +168,8 @@ bool checkLane(const vector<vector<double>>& lane_vehicles, double& distance, do
     double vy = vehicle_info[4];
     double check_speed = sqrt(vx * vx + vy * vy);
     double check_car_s = vehicle_info[5];
-    // predict the future postition with some margin
-    check_car_s += (double)prev_size * 0.02 * (check_speed + 7);
+    // predict the future postition
+    check_car_s += (double)prev_size * 0.02 * (check_speed);
     // find the speed of the slowest car in a lane
     // and distance to the nearest car in a lane
     if (check_car_s > car_s) {
@@ -179,7 +179,7 @@ bool checkLane(const vector<vector<double>>& lane_vehicles, double& distance, do
                 distance = check_car_s;
     }
     // count number of cars in a lane that are far enough
-    if ((check_car_s - car_s) >= 30 || (check_car_s - car_s) <= -10)
+    if ((check_car_s - car_s) >= 30 || (check_car_s - car_s) <= -15)
       distant_cars++;
   }
   // if all the vehicles in a lane are far enough
