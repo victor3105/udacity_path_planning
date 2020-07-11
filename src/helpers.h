@@ -155,10 +155,39 @@ vector<double> getXY(double s, double d, const vector<double> &maps_s,
   return {x,y};
 }
 
-// generate smooth trajectory using spline library
-/*vector<vector<double>> generateTrajectory(int lane, float velocity, double car_x, double car_y, double car_yaw)
+// this function checks if specified lane change is feasible (safe)
+bool checkLane(const vector<vector<double>>& lane_vehicles, double& distance, double& speed, const double car_s, const int prev_size)
 {
-  
-}*/
+  bool lane_change_feasible = false;
+  int distant_cars = 0;
+
+  for (auto vehicle_info : lane_vehicles)
+  {
+    // extract information about the speed and position of a vehicle
+    double vx = vehicle_info[3];
+    double vy = vehicle_info[4];
+    double check_speed = sqrt(vx * vx + vy * vy);
+    double check_car_s = vehicle_info[5];
+    // predict the future postition with some margin
+    check_car_s += (double)prev_size * 0.02 * (check_speed + 7);
+    // find the speed of the slowest car in a lane
+    // and distance to the nearest car in a lane
+    if (check_car_s > car_s) {
+      if (check_speed < speed)
+              speed = check_speed;
+            if (check_car_s < distance)
+                distance = check_car_s;
+    }
+    // count number of cars in a lane that are far enough
+    if ((check_car_s - car_s) >= 30 || (check_car_s - car_s) <= -10)
+      distant_cars++;
+  }
+  // if all the vehicles in a lane are far enough
+  // then lane change can be performed
+  if (distant_cars == lane_vehicles.size())
+    lane_change_feasible = true;
+
+  return lane_change_feasible;
+}
 
 #endif  // HELPERS_H
