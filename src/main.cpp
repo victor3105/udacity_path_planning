@@ -104,11 +104,10 @@ int main() {
           if (prev_size > 0)
             car_s = end_path_s;
           
-          bool too_close = false;
-          
           vector<vector<double>> lane_to_the_left_vehicles;
           vector<vector<double>> lane_to_the_right_vehicles;
           
+          bool too_close = false;
           double nearest_car_speed = 0;
           
           for (int i = 0; i < sensor_fusion.size(); i++)
@@ -137,7 +136,6 @@ int main() {
           }
               
           // consider lane change
-          std::cout << middle_lane_timer << std::endl;
           if (too_close)
           {
             int distant_cars_left = 0;
@@ -162,7 +160,7 @@ int main() {
                   double vy = car_info[4];
                   double check_speed = sqrt(vx * vx + vy * vy);
                   double check_car_s = car_info[5];
-                  check_car_s += (double)prev_size * 0.02 * check_speed;
+                  check_car_s += (double)prev_size * 0.02 * (check_speed + 7);
                   // find the slowest car in the lane in front of us
                   if (check_car_s > car_s) {
                     if (check_speed < left_speed)
@@ -170,7 +168,7 @@ int main() {
                     if (check_car_s < left_distance)
                       left_distance = check_car_s;
                   }
-                  if ((check_car_s - car_s) >= 20 || (check_car_s - car_s) <= -8)
+                  if ((check_car_s - car_s) >= 30 || (check_car_s - car_s) <= -10)
                     distant_cars_left++;
                 }
                 if (distant_cars_left == lane_to_the_left_vehicles.size())
@@ -183,7 +181,7 @@ int main() {
                   double vy = car_info[4];
                   double check_speed = sqrt(vx * vx + vy * vy);
                   double check_car_s = car_info[5];
-                  check_car_s += (double)prev_size * 0.02 * check_speed;
+                  check_car_s += (double)prev_size * 0.02 * (check_speed + 7);
                   // find the slowest car in the lane in front of us
                   if (check_car_s > car_s) {
                     if (check_speed < right_speed)
@@ -191,7 +189,7 @@ int main() {
                     if (check_car_s < right_distance)
                       right_distance = check_car_s;
                   }
-                  if ((check_car_s - car_s) >= 20 || (check_car_s - car_s) <= -8)
+                  if ((check_car_s - car_s) >= 30 || (check_car_s - car_s) <= -10)
                     distant_cars_right++;
                 }
                 if (distant_cars_right == lane_to_the_right_vehicles.size())
@@ -220,7 +218,7 @@ int main() {
                 double vy = car_info[4];
                 double check_speed = sqrt(vx * vx + vy * vy);
                 double check_car_s = car_info[5];
-                check_car_s += (double)prev_size * 0.02 * check_speed;
+                check_car_s += (double)prev_size * 0.02 * (check_speed + 7);
                 // find the slowest car in the lane in front of us
                 if (check_car_s > car_s) {
                   if (check_speed < right_speed)
@@ -228,7 +226,7 @@ int main() {
                   if (check_car_s < right_distance)
                     right_distance = check_car_s;
                 }
-                if ((check_car_s - car_s) >= 20 || (check_car_s - car_s) <= -8)
+                if ((check_car_s - car_s) >= 30 || (check_car_s - car_s) <= -10)
                   distant_cars_right++;
               }
               if (distant_cars_right == lane_to_the_right_vehicles.size())
@@ -248,7 +246,7 @@ int main() {
                 double vy = car_info[4];
                 double check_speed = sqrt(vx * vx + vy * vy);
                 double check_car_s = car_info[5];
-                check_car_s += (double)prev_size * 0.02 * check_speed;
+                check_car_s += (double)prev_size * 0.02 * (check_speed + 7);
                 // find the slowest car in the lane in front of us
                 if (check_car_s > car_s) {
                   if (check_speed < left_speed)
@@ -256,7 +254,7 @@ int main() {
                   if (check_car_s < left_distance)
                     left_distance = check_car_s;
                 }
-                if ((check_car_s - car_s) >= 20 || (check_car_s - car_s) <= -8)
+                if ((check_car_s - car_s) >= 30 || (check_car_s - car_s) <= -10)
                   distant_cars_left++;
               }
               if (distant_cars_left == lane_to_the_left_vehicles.size())
@@ -345,11 +343,11 @@ int main() {
           {
             	if (too_close)
           	{
-            	ref_vel -= 0.224;
+            	ref_vel -= 0.3;
           	}
           	else if (ref_vel < 49.5)
           	{
-            	ref_vel += 0.224;
+            	ref_vel += 0.35;
           	}
             double N = target_dist / (0.02 * ref_vel / 2.24);            
             double x_point = x_add_on + target_x / N;
