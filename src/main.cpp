@@ -52,8 +52,9 @@ int main() {
 
   int lane = 1;
   double ref_vel = 0;
+  unsigned int middle_lane_timer = 0;
   
-  h.onMessage([&ref_vel, &lane, &map_waypoints_x,&map_waypoints_y,&map_waypoints_s,
+  h.onMessage([&ref_vel, &lane, &middle_lane_timer, &map_waypoints_x,&map_waypoints_y,&map_waypoints_s,
                &map_waypoints_dx,&map_waypoints_dy]
               (uWS::WebSocket<uWS::SERVER> ws, char *data, size_t length,
                uWS::OpCode opCode) {
@@ -108,6 +109,8 @@ int main() {
           vector<vector<double>> lane_to_the_left_vehicles;
           vector<vector<double>> lane_to_the_right_vehicles;
           
+          double nearest_car_speed = 0;
+          
           for (int i = 0; i < sensor_fusion.size(); i++)
           {
             float d = sensor_fusion[i][6];
@@ -124,6 +127,7 @@ int main() {
               if ((check_car_s > car_s) && ((check_car_s - car_s) < 30))
               {
                 too_close = true;
+                nearest_car_speed = check_speed;
               }
             }
             else if (d < (2 + 4 * (lane - 1) + 2) && d > (2 + 4 * (lane - 1) - 2))
@@ -133,6 +137,7 @@ int main() {
           }
               
           // consider lane change
+          std::cout << middle_lane_timer << std::endl;
           if (too_close)
           {
             int distant_cars_left = 0;
@@ -146,28 +151,69 @@ int main() {
             // if we're in the middle lane
             if (lane == 1)
             {
-              // check left lane
-              for (auto car_info : lane_to_the_left_vehicles)
+              if(middle_lane_timer > 0)
+                middle_lane_timer--;
+              else
               {
-                double vx = car_info[3];
-                double vy = car_info[4];
-                double check_speed = sqrt(vx * vx + vy * vy);
-                double check_car_s = car_info[5];
-                check_car_s += (double)prev_size * 0.02 * check_speed;
-                // find the slowest car in the lane in front of us
-                if (check_car_s > car_s) {
-                  if (check_speed < left_speed)
-                    left_speed = check_speed;
-                  if (check_car_s < left_distance)
-                    left_distance = check_car_s;
+                // check left lane
+                for (auto car_info : lane_to_the_left_vehicles)
+                {
+                  double vx = car_info[3];
+                  double vy = car_info[4];
+                  double check_speed = sqrt(vx * vx + vy * vy);
+                  double check_car_s = car_info[5];
+                  check_car_s += (double)prev_size * 0.02 * check_speed;
+                  // find the slowest car in the lane in front of us
+                  if (check_car_s > car_s) {
+                    if (check_speed < left_speed)
+                      left_speed = check_speed;
+                    if (check_car_s < left_distance)
+                      left_distance = check_car_s;
+                  }
+                  if ((check_car_s - car_s) >= 20 || (check_car_s - car_s) <= -8)
+                    distant_cars_left++;
                 }
-                if ((check_car_s - car_s) >= 20 || (check_car_s - car_s) <= -6)
-                  distant_cars_left++;
+                if (distant_cars_left == lane_to_the_left_vehicles.size())
+                  feasible_left = true;
+
+                // check right lane
+                for (auto car_info : lane_to_the_right_vehicles)
+                {
+                  double vx = car_info[3];
+                  double vy = car_info[4];
+                  double check_speed = sqrt(vx * vx + vy * vy);
+                  double check_car_s = car_info[5];
+                  check_car_s += (double)prev_size * 0.02 * check_speed;
+                  // find the slowest car in the lane in front of us
+                  if (check_car_s > car_s) {
+                    if (check_speed < right_speed)
+                      right_speed = check_speed;
+                    if (check_car_s < right_distance)
+                      right_distance = check_car_s;
+                  }
+                  if ((check_car_s - car_s) >= 20 || (check_car_s - car_s) <= -8)
+                    distant_cars_right++;
+                }
+                if (distant_cars_right == lane_to_the_right_vehicles.size())
+                  feasible_right = true;
+
+                if (feasible_left && feasible_right)
+                {
+                  double left_score = left_speed + left_distance;
+                  double right_score = right_speed + right_distance;
+                  if (left_score > right_score)
+                    lane = 0;
+                  else
+                    lane = 2;
+                }
+                else if (feasible_left)
+                  lane = 0;
+                else
+                  lane = 2;
               }
-              if (distant_cars_left == lane_to_the_left_vehicles.size())
-                feasible_left = true;
-              
-              // check right lane
+            }
+            else if (lane == 0)
+            {
               for (auto car_info : lane_to_the_right_vehicles)
               {
                 double vx = car_info[3];
@@ -182,20 +228,43 @@ int main() {
                   if (check_car_s < right_distance)
                     right_distance = check_car_s;
                 }
-                if ((check_car_s - car_s) >= 20 || (check_car_s - car_s) <= -6)
+                if ((check_car_s - car_s) >= 20 || (check_car_s - car_s) <= -8)
                   distant_cars_right++;
               }
               if (distant_cars_right == lane_to_the_right_vehicles.size())
                 feasible_right = true;
               
-              if (feasible_left && feasible_right)
+              if (feasible_right && ((right_speed > nearest_car_speed) || (lane_to_the_right_vehicles.size() == 0) || (right_distance > 50)))
               {
-                double left_score = left_speed + left_distance;
-                double right_score = right_speed + right_distance;
-                if (left_score > right_score)
-                  lane = 0;
-                else
-                  lane = 2;
+                lane = 1;
+                middle_lane_timer = 40;
+              }
+            }
+            else
+            {
+              for (auto car_info : lane_to_the_left_vehicles)
+              {
+                double vx = car_info[3];
+                double vy = car_info[4];
+                double check_speed = sqrt(vx * vx + vy * vy);
+                double check_car_s = car_info[5];
+                check_car_s += (double)prev_size * 0.02 * check_speed;
+                // find the slowest car in the lane in front of us
+                if (check_car_s > car_s) {
+                  if (check_speed < left_speed)
+                    left_speed = check_speed;
+                  if (check_car_s < left_distance)
+                    left_distance = check_car_s;
+                }
+                if ((check_car_s - car_s) >= 20 || (check_car_s - car_s) <= -8)
+                  distant_cars_left++;
+              }
+              if (distant_cars_left == lane_to_the_left_vehicles.size())
+                feasible_left = true;
+              if (feasible_left && ((left_speed > nearest_car_speed) || (lane_to_the_left_vehicles.size() == 0) || (left_distance > 50)))
+              {
+                lane = 1;
+                middle_lane_timer = 40;
               }
             }
           }
