@@ -50,8 +50,11 @@ int main() {
     map_waypoints_dy.push_back(d_y);
   }
 
+  // we start in the middle lane
   int lane = 1;
+  // our velocity
   double ref_vel = 0;
+  // timer is used to exclude two lane changes in a row
   unsigned int middle_lane_timer = 0;
   
   h.onMessage([&ref_vel, &lane, &middle_lane_timer, &map_waypoints_x,&map_waypoints_y,&map_waypoints_s,
@@ -94,26 +97,25 @@ int main() {
 
           json msgJson;
 
-          /**
-           * TODO: define a path made up of (x,y) points that the car will visit
-           *   sequentially every .02 seconds
-           */
-          
+          // use points from the previous path
           int prev_size = previous_path_x.size();
           
           if (prev_size > 0)
             car_s = end_path_s;
           
+          // these vectors contain information about vehicles in the adjacent lanes
           vector<vector<double>> lane_to_the_left_vehicles;
           vector<vector<double>> lane_to_the_right_vehicles;
           
           bool too_close = false;
           double nearest_car_speed = 0;
           
+          // look at all the vehicles around
           for (int i = 0; i < sensor_fusion.size(); i++)
           {
             float d = sensor_fusion[i][6];
             
+            // if the vehicle is in our lane
             if (d < (2 + 4 * lane + 2) && d > (2 + 4 * lane - 2))
             {
               double vx = sensor_fusion[i][3];
@@ -123,14 +125,17 @@ int main() {
               
               check_car_s += (double)prev_size * 0.02 * check_speed;
               
+              // if the vehicle is in front of us and closer than 30 m
               if ((check_car_s > car_s) && ((check_car_s - car_s) < 30))
               {
                 too_close = true;
                 nearest_car_speed = check_speed;
               }
             }
+            // if the vehicle is in the lane to the left of us
             else if (d < (2 + 4 * (lane - 1) + 2) && d > (2 + 4 * (lane - 1) - 2))
               lane_to_the_left_vehicles.push_back(sensor_fusion[i]);
+            // if the vehicle is in the lane to the right of us
             else
               lane_to_the_right_vehicles.push_back(sensor_fusion[i]);
           }
@@ -199,12 +204,15 @@ int main() {
             }
           }
           
+          // use these points to calculate spline
           vector<double> ptsx, ptsy;
           
+          // reference the starting point as a current state
           double ref_x = car_x;
           double ref_y = car_y;
           double ref_yaw = deg2rad(car_yaw);
           
+          // if the previous path is almost empty, use the current state
           if (prev_size < 2)
           {
             double prev_car_x = car_x - cos(car_yaw);
@@ -215,6 +223,7 @@ int main() {
             ptsy.push_back(prev_car_y);
             ptsy.push_back(car_y);
           }
+          // use previous path's endpoint
           else
           {
             ref_x = previous_path_x[prev_size - 1];
@@ -231,6 +240,7 @@ int main() {
             ptsy.push_back(ref_y);
           }
           
+          // add evenly spaced points for spline generation
           vector<double> next_wp0 = getXY(car_s + 30, (2 + 4 * lane), map_waypoints_s, map_waypoints_x, map_waypoints_y);
           vector<double> next_wp1 = getXY(car_s + 60, (2 + 4 * lane), map_waypoints_s, map_waypoints_x, map_waypoints_y);
           vector<double> next_wp2 = getXY(car_s + 90, (2 + 4 * lane), map_waypoints_s, map_waypoints_x, map_waypoints_y);
@@ -245,6 +255,7 @@ int main() {
           
           for (int i = 0; i < ptsx.size(); i++)
           {
+            // perform transformation to make calculations easier
             double shift_x = ptsx[i] - ref_x;
             double shift_y = ptsy[i] - ref_y;
             
@@ -252,13 +263,17 @@ int main() {
             ptsy[i] = shift_x * sin(-ref_yaw) + shift_y * cos(-ref_yaw);
           }
           
+          // create spline
           tk::spline s;
           
+          // set point to calculate spline
           s.set_points(ptsx, ptsy);
           
+          // points of our future trajectory
           vector<double> next_x_vals;
           vector<double> next_y_vals;
           
+          // use points from the previous path
           for (int i = 0; i < prev_size; i++)
           {
             next_x_vals.push_back(previous_path_x[i]);
@@ -271,6 +286,7 @@ int main() {
           
           double x_add_on = 0.0;
           
+          // fill up the rest of trajectory points
           for (int i = 1; i <= 50 - prev_size; i++)
           {
             	if (too_close)
@@ -290,6 +306,7 @@ int main() {
             double x_ref = x_point;
             double y_ref = y_point;
             
+            // perform inverse transformation
             x_point = x_ref * cos(ref_yaw) - y_ref * sin(ref_yaw);
             y_point = x_ref * sin(ref_yaw) + y_ref * cos(ref_yaw);
             
